@@ -63,14 +63,16 @@ class LoadingActivity:ComponentActivity(),CoroutineScope {
                     }
                     val viewModel = hiltViewModel<FirestoreViewModel>()
                     val data = viewModel.getLink().observeAsState().value
+
                     if(isConnectedToInternet(context = applicationContext)) {
                         dataStoreManager.getIsInServer.onEach { isInServer ->
                             when (isInServer) {
                                 0 -> {
                                     data?.let { dataResp ->
                                         if (dataResp.isNotEmpty() && dataResp != "Failed to get document because the client is offline.") {
-                                            Log.e("Firebase Disconnect", "False")
+                                            Log.e("Firebase Connect", "True")
                                             viewModel.getFromServer(
+                                                dataResp,
                                                 applicationContext.packageName,
                                                 UUID.randomUUID().toString(),
                                                 SimpleTimeZone.getDefault().id
