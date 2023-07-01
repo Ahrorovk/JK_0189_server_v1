@@ -18,11 +18,15 @@ import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.template.ui.theme.JK_0189_server_v1Theme
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,6 +55,8 @@ class LoadingActivity:ComponentActivity(),CoroutineScope {
         super.onCreate(savedInstanceState)
         job = Job()
 
+        val systemUiController = WindowCompat.getInsetsController(window,window.decorView)
+        systemUiController?.hide(WindowInsetsCompat.Type.statusBars())
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
         setContent {
             JK_0189_server_v1Theme {
@@ -61,74 +67,61 @@ class LoadingActivity:ComponentActivity(),CoroutineScope {
                     if (Build.VERSION.SDK_INT >= 33) {
                         Permissions()
                     }
+                    val scope = rememberCoroutineScope()
                     val viewModel = hiltViewModel<FirestoreViewModel>()
-                    val data = viewModel.getLink().observeAsState().value
 
                     if(isConnectedToInternet(context = applicationContext)) {
-                        dataStoreManager.getIsInServer.onEach { isInServer ->
-                            when (isInServer) {
-                                0 -> {
-                                    data?.let { dataResp ->
-                                        if (dataResp.isNotEmpty() && dataResp != "Failed to get document because the client is offline.") {
-                                            Log.e("Firebase Connect", "True")
-                                            viewModel.getFromServer(
-                                                dataResp,
-                                                applicationContext.packageName,
-                                                UUID.randomUUID().toString(),
-                                                SimpleTimeZone.getDefault().id
-                                            )
-                                        }
-                                        else if (dataResp == "Failed to get document because the client is offline.") {
-                                            Log.e("Firebase Disconnect","True")
-                                            CoroutineScope(Dispatchers.Default).launch {
-                                                dataStoreManager.updateIsInServer(0)
+                        LaunchedEffect(key1 = true) {
+                            dataStoreManager.getIsInServer.onEach { isInServer ->
+                                Log.e("dataStoreManager", "True")
+                                when (isInServer) {
+                                    0 -> {
+                                        viewModel.getLink().onEach { res ->
+                                            if (/*res != "Failed to get document because the client is offline."&&*/
+                                                res != "0" && res != "1") {
+                                                Log.e("Firebase Connect", "True")
+                                                res?.let {
+                                                    viewModel.getFromServer(
+                                                        it,
+                                                        applicationContext.packageName,
+                                                        UUID.randomUUID().toString(),
+                                                        "Asia/Dushanbe"
+                                                    )
+                                                }
                                             }
-                                            val intent =
-                                                Intent(
-                                                    applicationContext,
-                                                    MainActivity::class.java
-                                                )
-                                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                            applicationContext.startActivity(intent)
+                                        }.launchIn(this)
+                                    }
+                                    1 -> {
+                                        val intent =
+                                            Intent(applicationContext, MainActivity::class.java)
+                                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        applicationContext.startActivity(intent)
 
-                                            val resultIntent = Intent()
-                                            resultIntent.putExtra(
-                                                "resultKey",
-                                                "Some result data"
-                                            )
-                                            setResult(Activity.RESULT_OK, resultIntent)
-                                            finish()
-                                        } else {
-                                            CoroutineScope(Dispatchers.Default).launch {
-                                                dataStoreManager.updateIsInServer(1)
-                                            }
+                                        val resultIntent = Intent()
+                                        resultIntent.putExtra("resultKey", "Some result data")
+                                        setResult(Activity.RESULT_OK, resultIntent)
+                                        finish()
+                                    }
+                                    2 -> {
+                                        val intent =
+                                            Intent(applicationContext, WebActivity::class.java)
+                                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        applicationContext.startActivity(intent)
+
+                                        val resultIntent = Intent()
+                                        resultIntent.putExtra("resultKey", "Some result data")
+                                        setResult(Activity.RESULT_OK, resultIntent)
+                                        finish()
+                                    }
+                                    3->{
+                                        scope.launch(Dispatchers.Default) {
+                                            delay(100)
+                                            dataStoreManager.updateIsInServer(0)
                                         }
                                     }
                                 }
-                                1 -> {
-                                    val intent =
-                                        Intent(applicationContext, MainActivity::class.java)
-                                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    applicationContext.startActivity(intent)
-
-                                    val resultIntent = Intent()
-                                    resultIntent.putExtra("resultKey", "Some result data")
-                                    setResult(Activity.RESULT_OK, resultIntent)
-                                    finish()
-                                }
-                                2 -> {
-                                    val intent =
-                                        Intent(applicationContext, WebActivity::class.java)
-                                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    applicationContext.startActivity(intent)
-
-                                    val resultIntent = Intent()
-                                    resultIntent.putExtra("resultKey", "Some result data")
-                                    setResult(Activity.RESULT_OK, resultIntent)
-                                    finish()
-                                }
-                            }
-                        }.launchIn(this)
+                            }.launchIn(this)
+                        }
                     }
                     else {
                         LaunchedEffect(key1 = true) {

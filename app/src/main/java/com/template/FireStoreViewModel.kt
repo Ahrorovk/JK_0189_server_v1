@@ -2,6 +2,7 @@ package com.template
 
 import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -10,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -86,22 +88,30 @@ class FirestoreViewModel @Inject constructor(
                 }
             })
         }
-    fun getLink(): LiveData<String?> {
-        val linkData = MutableLiveData<String?>()
+    fun getLink(): MutableStateFlow<String?> {
+        val linkData = MutableStateFlow<String?>("0")
         db.collection("database")
             .document("check")
             .get()
             .addOnSuccessListener { documentSnapshot ->
                 if (documentSnapshot.exists()) {
                     val link = documentSnapshot.getString("link")
-                    linkData.value = link
-                    Log.e("Success","$link")
+                    if(link == null) {
+                        linkData.value = "1"
+                        viewModelScope.launch(Dispatchers.IO) {
+                            dataStoreManager.updateIsInServer(1)
+                        }
+                    }
+                    else linkData.value = link
+                    Log.e("Success","$link \n ${linkData.value}")
                 } else {
                     Log.e("Null","$documentSnapshot")
                 }
             }
             .addOnFailureListener { exception ->
-                linkData.value = exception.message
+                viewModelScope.launch(Dispatchers.IO) {
+                    dataStoreManager.updateIsInServer(3)
+                }
                 Log.e("Error","${exception.message}")
             }
         return linkData

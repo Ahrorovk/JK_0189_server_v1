@@ -13,13 +13,16 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import com.template.ui.theme.JK_0189_server_v1Theme
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(33)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        val systemUiController = WindowCompat.getInsetsController(window,window.decorView)
+        systemUiController?.hide(WindowInsetsCompat.Type.statusBars())
         setContent {
             JK_0189_server_v1Theme {
                 Surface(
