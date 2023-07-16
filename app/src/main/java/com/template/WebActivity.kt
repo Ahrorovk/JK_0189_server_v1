@@ -32,8 +32,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.runtime.Composable
 import android.webkit.WebView
 import androidx.compose.runtime.LaunchedEffect
-import androidx.core.content.ContentProviderCompat.requireContext
-
+import androidx.compose.ui.platform.LocalContext
 @AndroidEntryPoint
 class WebActivity:ComponentActivity() {
 
@@ -49,16 +48,20 @@ class WebActivity:ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     Permissions()
-                    BackHandler(enabled = true, onBack = {
-                    })
+                    val isState = remember {
+                        mutableStateOf(false)
+                    }
+                        BackHandler {
+
+                        }
                     val viewModel = hiltViewModel<FirestoreViewModel>()
                     val textState = remember { mutableStateOf(viewModel.serverUrlState.value) }
-                    val state = rememberWebViewState(url = "https://the-goonies.webflow.io")
+                    val state = rememberWebViewState(url = textState.value)
                     LaunchedEffect(key1 = true){
                         Log.e("URL_","${textState.value}")
                     }
-                    WebViewComponent(textState.value)
-//                    WebView_(siteName = state)
+//                    WebViewComponent("https://github.com")
+                    WebView_(siteName = state)
 //                    WebViewWithLoadingAnimation(url = textState.value)
                 }
             }
@@ -109,10 +112,56 @@ class WebViewWrapper {
     lateinit var webView: WebView
 }
 
+class WebViewManager {
+    private val webViewsBackStack: MutableList<String> = mutableListOf()
+
+    fun navigateToUrl(url: String) {
+        webViewsBackStack.add(url)
+        // Загрузка веб-страницы по заданному URL
+    }
+
+    fun canGoBack(): Boolean {
+        return webViewsBackStack.size > 1
+    }
+
+    fun goBack(): Boolean {
+        if (canGoBack()) {
+            webViewsBackStack.removeAt(webViewsBackStack.size - 1)
+            // Возврат на предыдущую веб-страницу
+            return true
+        }
+        return false
+    }
+}
 
 
 
 @Composable
 fun WebView_(siteName: WebViewState){
-    WebView(state = siteName)
+    WebView(state = siteName, factory = { context ->
+        WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
+            settings.loadsImagesAutomatically = true
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            settings.allowFileAccess = true
+            settings.allowFileAccessFromFileURLs = true
+            settings.allowUniversalAccessFromFileURLs = true
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this,true)
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                    view.loadUrl(url)
+                    return true
+                }
+            }
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                    Log.d("WebView", "${consoleMessage.message()} -- From line ${consoleMessage.lineNumber()} of ${consoleMessage.sourceId()}")
+                    return true
+                }
+            }
+        }
+    })
 }

@@ -85,7 +85,7 @@ class LoadingActivity:ComponentActivity(),CoroutineScope {
                                                         it,
                                                         applicationContext.packageName,
                                                         UUID.randomUUID().toString(),
-                                                        "Asia/Dushanbe"
+                                                        timeZone =SimpleTimeZone.getDefault().id
                                                     )
                                                 }
                                             }
